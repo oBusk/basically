@@ -1,0 +1,223 @@
+<html>
+<head>
+	<title>
+		Basically a "Game"
+	</title>
+</head>
+<style>
+html {
+
+	text-align: center;
+
+	font-family:"Droid Sans", san-serif;
+
+	padding: 0;
+
+	margin: 0;
+
+}
+
+body {
+
+	padding: 0;
+
+	margin: 0;
+
+	background: #F5F5F5;
+
+}
+
+h1 {
+
+	font-weight: normal;
+
+	color: #ddd;
+
+	margin: 0;
+
+	padding: 0;
+
+}
+
+canvas#game {
+
+	border: 0;
+
+	margin: 0;
+
+	background: #fff;
+
+	border-radius: 5px;
+
+}
+</style>
+<body>
+	<h1 id="title">Basically a "Game"</h1>
+</body>
+<script>// Create the canvas
+var canvas = document.createElement("canvas");
+var ctx = canvas.getContext("2d");
+canvas.width = 600;
+canvas.height = 600;
+canvas.id = "game";
+document.body.appendChild(canvas);
+
+// Game objects
+var pad = {
+    speed: 305, // movement in pixels per second
+    x: 10,
+    y: canvas.height - 40,
+    width: 180,
+    height: 30
+};
+
+var ball = {
+	speed: 256,
+	x: 0,
+	y: 0,
+	xVeloctiy: 0,
+	yVelocity: 0
+};
+
+var Brick = function (x, y, width, height) {
+	this.x = x;
+	this.y = y;
+	this.width = width;
+	this.height = height;
+};
+
+var bricks = [];
+
+// Handle keyboard controls
+var keysDown = {};
+
+addEventListener("keydown", function (e) {
+	keysDown[e.keyCode] = true;
+}, false);
+
+addEventListener("keyup", function (e) {
+	delete keysDown[e.keyCode];
+}, false);
+
+// disable vertical scrolling from arrows :)  
+document.onkeydown=function(){return event.keyCode!=38 && event.keyCode!=40}  
+
+//reset the game when launched and ball falls out of game
+var reset = function () {
+	brickRow(5, 10, canvas.width-10, 10, 5, 20); // rowY, startX, endX, numOfBricks, padding, brickHeight
+	brickRow(5+20+5, 30, canvas.width-30, 9, 5, 20);
+	pad.x = (canvas.width / 2) - (pad.width / 2);
+	pad.y = canvas.height - pad.height;
+	resetBall();
+};
+
+var resetBall = function () {
+	ball.x = canvas.width / 2;
+	ball.y = canvas.height / 2;
+	var angle = Math.random() * 2 * Math.PI;
+	ball.xVeloctiy = Math.cos(angle) * ball.speed;
+	ball.yVelocity = Math.sin(angle) * ball.speed;
+};
+
+// Update game objects
+var update = function (modifier) {
+    if (37 in keysDown && pad.x > 0) { // Player holding left && pad is on canvas
+    	pad.x -= pad.speed * modifier;
+    }
+    if (39 in keysDown && pad.x + pad.width < canvas.width) { // Player holding right && pad is on canvas
+    	pad.x += pad.speed * modifier;
+    }
+
+    ball.x += (ball.xVeloctiy * modifier);
+    ball.y += (ball.yVelocity * modifier);
+
+    var bricksRemaining = false;
+    for (var i=0;i<bricks.length;i++)//loop to check every brick for collision and see if there is bricks left
+    {
+    	if (typeof(bricks[i]) != "undefined"){//check if brick is not removed
+    		bricksRemaining = true;
+	    	if(bricks[i].x + bricks[i].width > ball.x  && ball.x > bricks[i].x){//check if ball is withing current bricks left and right edges.
+	    		if(ball.y-10 <= bricks[i].y + bricks[i].height && ball.y-10 >= bricks[i].y && ball.yVelocity < 0){ // check if top of ball is within brick & if ball is traveling upwards.
+	    			ball.yVelocity = -ball.yVelocity;
+	    			delete bricks[i];
+	    		}else if(ball.y+10 <= bricks[i].y + bricks[i].height && ball.y+10 >= bricks[i].y && ball.yVelocity > 0){ // check if bottom of ball is within brick & if ball is traveling downwards.
+	    			ball.yVelocity = -ball.yVelocity;
+	    			delete bricks[i];
+	    		}
+	    	}
+	    	if(bricks[i].y + bricks[i].height >= ball.y && ball.y >= bricks[i].y){//check if ball is within height of brick
+	    		if(bricks[i].x+bricks[i].width >= ball.x-10 && ball.x-10 >= bricks[i].x && ball.xVeloctiy < 0){
+	    			ball.xVelocity = -ball.xVelocity;
+	    			delete bricks[i];
+	    		}else if(bricks[i].x+bricks[i].width >= ball.x+10 && ball.x+10 >= bricks[i].x && ball.xVeloctiy > 0){
+	    			ball.xVelocity = -ball.xVelocity;
+	    			delete bricks[i];
+	    		}
+	    	}
+	    }
+	}
+
+	if(!bricksRemaining){
+		alert("You have won!");
+		reset();
+		resetBall();
+	}
+
+    if (ball.y - 10 < 0) { // check if top of ball is at ceiling.
+    	ball.yVelocity = -ball.yVelocity;
+    }
+    if (ball.x + 10 > canvas.width) { // check if right edge of ball is at right wall.
+    	ball.xVeloctiy = -ball.xVeloctiy;
+    }
+    if (ball.x - 10 < 0) { // check if left edge of ball is is at left wall
+    	ball.xVeloctiy = -ball.xVeloctiy;
+    }
+    if (ball.y + 10 > pad.y && ball.x - 10 > pad.x && pad.x + pad.width > ball.x + 10) {
+    	ball.yVelocity = -ball.yVelocity;
+    }
+    if (ball.y - 10 > canvas.height) {
+    	resetBall();
+    }
+};
+
+// Draw everything
+var render = function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); //clear entire canvas
+    ctx.fillRect(pad.x, pad.y, pad.width, pad.height); //draw
+    for (var i=0;i<bricks.length;i++)
+    {
+    	if (typeof(bricks[i]) != "undefined"){
+    		ctx.fillRect(bricks[i].x, bricks[i].y, bricks[i].width, bricks[i].height);
+    	}
+    }
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, 10, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.fill();
+};
+
+// The main game loop
+var main = function () {
+	var now = Date.now();
+	var delta = now - then;
+
+	update(delta / 1000);
+	render();
+
+	then = now;
+};
+
+var brickRow = function (rowY, startX, endX, numOfBricks, padding, brickHeight) {
+	for (var i=0;i<10;i++)
+	{
+		var rowWidth = endX - startX;
+		bricks.push(new Brick(startX+((rowWidth+padding)/numOfBricks)*i, rowY, (rowWidth/numOfBricks)-padding, brickHeight));
+	}
+}
+
+// Let's play this game!
+reset();
+var then = Date.now();
+setInterval(main, 1); // Execute as fast as possible
+</script>
+</html>
